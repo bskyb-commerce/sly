@@ -1,4 +1,5 @@
 # [Sly](http://darsa.in/sly)
+This is a fork with experimental support support for both horizontal and vertical scrolling at the same time.
 
 JavaScript library for one-directional scrolling with item based navigation support.
 

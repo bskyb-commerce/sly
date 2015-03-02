@@ -1,5 +1,5 @@
 /*!
- * sly 1.3.0 - 30th Nov 2014
+ * sly 1.3.2 - 2nd Mar 2015
  * https://github.com/darsain/sly
  *
  * Licensed under the MIT license.
@@ -72,6 +72,7 @@
 			center: 0,
 			end: 0,
 			cur: 0,
+			curX: 0,
 			dest: 0
 		};
 
@@ -125,7 +126,7 @@
 		var $nextPageButton = $(o.nextPage);
 		var callbacks = {};
 		var last = {};
-		var animation = {};
+		var animation = { toX: 0};
 		var move = {};
 		var dragging = {
 			released: 1
@@ -404,22 +405,25 @@
 			animation.start = +new Date();
 			animation.time = 0;
 			animation.from = pos.cur;
+			animation.fromX = pos.curX;
 			animation.to = newPos;
 			animation.delta = newPos - pos.cur;
-			animation.tweesing = dragging.tweese || dragging.init && !dragging.slidee;
+			animation.deltaX = animation.toX - pos.curX;
+			animation.tweesing = true;	//forcing the animation tweesing for now
+			//animation.tweesing = dragging.tweese || dragging.init && !dragging.slidee;
 			animation.immediate = !animation.tweesing && (immediate || dragging.init && dragging.slidee || !o.speed);
 
 			// Reset dragging tweesing request
 			dragging.tweese = 0;
 
 			// Start animation rendering
-			if (newPos !== pos.dest) {
-				pos.dest = newPos;
-				trigger('change');
-				if (!renderID) {
-					render();
-				}
+			//if (newPos !== pos.dest) {
+			pos.dest = newPos;
+			trigger('change');
+			if (!renderID) {
+				render();
 			}
+			//}
 
 			// Reset next cycle timeout
 			resetCycle();
@@ -452,26 +456,35 @@
 			// If immediate repositioning is requested, don't animate.
 			if (animation.immediate) {
 				pos.cur = animation.to;
+				pos.curX = animation.toX;
 			}
 			// Use tweesing for animations without known end point
 			else if (animation.tweesing) {
 				animation.tweeseDelta = animation.to - pos.cur;
+				animation.tweeseDeltaX = animation.toX - pos.curX;
 				// Fuck Zeno's paradox
 				if (abs(animation.tweeseDelta) < 0.1) {
 					pos.cur = animation.to;
 				} else {
 					pos.cur += animation.tweeseDelta * (dragging.released ? o.swingSpeed : o.syncSpeed);
 				}
+				if (abs(animation.tweeseDeltaX) < 0.1) {
+					pos.curX = animation.toX;
+				} else {
+					pos.curX += animation.tweeseDeltaX * (dragging.released ? o.swingSpeed : o.syncSpeed);
+				}
 			}
 			// Use tweening for basic animations with known end point
 			else {
 				animation.time = min(+new Date() - animation.start, o.speed);
 				pos.cur = animation.from + animation.delta * jQuery.easing[o.easing](animation.time/o.speed, animation.time, 0, 1, o.speed);
+				pos.curX = animation.fromX + animation.deltaX * jQuery.easing[o.easing](animation.time/o.speed, animation.time, 0, 1, o.speed);
 			}
 
 			// If there is nothing more to render break the rendering loop, otherwise request new animation frame.
-			if (animation.to === pos.cur) {
+			if (animation.to === pos.cur && animation.toX === pos.curX) {
 				pos.cur = animation.to;
+				pos.curX = animation.toX;
 				dragging.tweese = renderID = 0;
 			} else {
 				renderID = rAF(render);
@@ -482,9 +495,12 @@
 			// Update SLIDEE position
 			if (!parallax) {
 				if (transform) {
-					$slidee[0].style[transform] = gpuAcceleration + (o.horizontal ? 'translateX' : 'translateY') + '(' + (-pos.cur) + 'px)';
+					$slidee[0].style[transform] = gpuAcceleration +
+					('translateX') + '(' + (-pos.curX) + 'px)'+
+					('translateY') + '(' + (-pos.cur) + 'px)';
 				} else {
-					$slidee[0].style[o.horizontal ? 'left' : 'top'] = -round(pos.cur) + 'px';
+					$slidee[0].style['left'] = -round(pos.curX) + 'px';
+					$slidee[0].style['top'] = -round(pos.cur) + 'px';
 				}
 			}
 
@@ -769,10 +785,10 @@
 		 */
 		function getIndex(item) {
 			return item != null ?
-					isNumber(item) ?
-						item >= 0 && item < items.length ? item : -1 :
-						$items.index(item) :
-					-1;
+				isNumber(item) ?
+					item >= 0 && item < items.length ? item : -1 :
+					$items.index(item) :
+				-1;
 		}
 		// Expose getIndex without lowering the compressibility of it,
 		// as it is used quite often throughout Sly.
@@ -1222,7 +1238,7 @@
 						self.on(key, name[key]);
 					}
 				}
-			// Callback
+				// Callback
 			} else if (type(fn) === 'function') {
 				var names = name.split(' ');
 				for (var n = 0, nl = names.length; n < nl; n++) {
@@ -1231,7 +1247,7 @@
 						callbacks[names[n]].push(fn);
 					}
 				}
-			// Callbacks array
+				// Callbacks array
 			} else if (type(fn) === 'array') {
 				for (var f = 0, fl = fn.length; f < fl; f++) {
 					self.on(name, fn[f]);
@@ -1392,6 +1408,7 @@
 			dragging.initX = dragging.pointer.pageX;
 			dragging.initY = dragging.pointer.pageY;
 			dragging.initPos = isSlidee ? pos.cur : hPos.cur;
+			dragging.initPosX = 0;
 			dragging.start = +new Date();
 			dragging.time = 0;
 			dragging.path = 0;
@@ -1434,12 +1451,17 @@
 			dragging.path = sqrt(pow(dragging.pathX, 2) + pow(dragging.pathY, 2));
 			dragging.delta = o.horizontal ? dragging.pathX : dragging.pathY;
 
+			trigger('drag', dragging);
+
 			if (!dragging.init) {
-				if (o.horizontal ? abs(dragging.pathX) > abs(dragging.pathY) : abs(dragging.pathX) < abs(dragging.pathY)) {
+
+				if (abs(dragging.pathX) > abs(dragging.pathY) ) {
 					dragging.init = 1;
-				} else {
-					return dragEnd();
 				}
+				if (abs(dragging.pathX) < abs(dragging.pathY)) {
+					dragging.init = 1;
+				}
+
 			}
 
 			stopDefault(event);
@@ -1454,14 +1476,15 @@
 			if (dragging.released) {
 				dragEnd();
 
-				// Adjust path with a swing on mouse release
+				// Adjust path with a swing on mouse releases
 				if (o.releaseSwing && dragging.slidee) {
+
 					dragging.swing = (dragging.delta - dragging.history[0]) / 40 * 300;
 					dragging.delta += dragging.swing;
 					dragging.tweese = abs(dragging.swing) > 10;
 				}
 			}
-
+			animation.toX += round(dragging.initPosX - dragging.pathX);
 			slideTo(dragging.slidee ? round(dragging.initPos - dragging.delta) : handleToSlidee(dragging.initPos + dragging.delta));
 		}
 
@@ -1479,6 +1502,7 @@
 			setTimeout(function () {
 				dragging.$source.off(clickEvent, disableOneEvent);
 			});
+			trigger('dragEnd', dragging);
 
 			// Resume ongoing cycle
 			self.resume(1);
@@ -2012,12 +2036,12 @@
 	// Local WindowAnimationTiming interface polyfill
 	(function (w) {
 		rAF = w.requestAnimationFrame
-			|| w.webkitRequestAnimationFrame
-			|| fallback;
+		|| w.webkitRequestAnimationFrame
+		|| fallback;
 
 		/**
-		* Fallback implementation.
-		*/
+		 * Fallback implementation.
+		 */
 		var prev = new Date().getTime();
 		function fallback(fn) {
 			var curr = new Date().getTime();
@@ -2028,8 +2052,8 @@
 		}
 
 		/**
-		* Cancel.
-		*/
+		 * Cancel.
+		 */
 		var cancel = w.cancelAnimationFrame
 			|| w.webkitCancelAnimationFrame
 			|| w.clearTimeout;
