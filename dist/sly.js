@@ -490,7 +490,7 @@
 				renderID = rAF(render);
 			}
 
-			trigger('move');
+			trigger('move', pos);
 
 			// Update SLIDEE position
 			if (!parallax) {
@@ -1436,8 +1436,6 @@
 			}
 		}
 
-		var slideeWidth = $(self.slidee).width();
-		var itemWidth = $(self.slidee.children[0]).width();
 
 		/**
 		 * Handler for dragging scrollbar handle or SLIDEE.
@@ -1491,13 +1489,18 @@
 			if (animation.toX < 0) {
 				animation.toX = 0;
 			}
-			var maxRightPost = itemWidth - slideeWidth;
+			var slideeWidth = $(self.slidee).width();
+			var itemWidth = $(self.slidee.children[0]).width();
+
+			var maxRightPost = itemWidth - slideeWidth + 20;	//leave some space as margin
+			if (maxRightPost < 0) {
+				maxRightPost = 0;
+			}
 			if (animation.toX > maxRightPost) {
 				animation.toX = maxRightPost;
 			}
 			slideTo(dragging.slidee ? round(dragging.initPos - dragging.delta) : handleToSlidee(dragging.initPos + dragging.delta));
 		}
-
 
 		/**
 		 * Stops dragging and cleans up after it.
