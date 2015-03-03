@@ -1,5 +1,5 @@
 /*!
- * sly 1.3.2 - 2nd Mar 2015
+ * sly 1.3.3 - 3rd Mar 2015
  * https://github.com/darsain/sly
  *
  * Licensed under the MIT license.
@@ -1436,6 +1436,9 @@
 			}
 		}
 
+		var slideeWidth = $(self.slidee).width();
+		var itemWidth = $(self.slidee.children[0]).width();
+
 		/**
 		 * Handler for dragging scrollbar handle or SLIDEE.
 		 *
@@ -1485,8 +1488,16 @@
 				}
 			}
 			animation.toX += round(dragging.initPosX - dragging.pathX);
+			if (animation.toX < 0) {
+				animation.toX = 0;
+			}
+			var maxRightPost = itemWidth - slideeWidth;
+			if (animation.toX > maxRightPost) {
+				animation.toX = maxRightPost;
+			}
 			slideTo(dragging.slidee ? round(dragging.initPos - dragging.delta) : handleToSlidee(dragging.initPos + dragging.delta));
 		}
+
 
 		/**
 		 * Stops dragging and cleans up after it.
